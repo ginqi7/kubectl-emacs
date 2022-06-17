@@ -76,7 +76,57 @@
           :buffer buffer
           :model model)))
     (add-click-hook component buffer)
-    (pop-to-buffer (ctbl:cp-get-buffer component))))
+    (pop-to-buffer (ctbl:cp-get-buffer component))
+    (setq asyn-process-output nil)
+    (add-help-info (keymaps-to-data (ctbl:table-mode-map)))
+    ))
+
+(defun butify-key (key)
+  (if (fixnump key)
+    (byte-to-string key)
+    key
+      )
+  )
+
+(defun keymap-to-item (key-map)
+  (list (butify-key (car key-map)) (cdr key-map))
+  )
+
+(defun  keymaps-to-data (key-maps)
+  (mapcar #'keymap-to-item (cdr key-maps))
+  )
+
+
+(defun insert-list-right (str-list)
+  (save-excursion
+    (goto-line 0)
+    (end-of-line)
+    (let ((max-column (current-column)))
+      (while str-list
+        (end-of-line)
+        (while (< (current-column)  max-column)
+          (insert " "))
+        (insert "   ")
+        (insert (car str-list))
+        (setq str-list (cdr str-list))
+        (next-line)
+        ))))
+
+(defun add-help-info (data)
+  (setq buffer-read-only nil)
+  (let* (
+         (model ; data model
+          (make-ctbl:model
+           :column-model  (mapcar 'kubectl-create-cmodel (list "key" "function"))
+           :data data))
+         (component ; ctable component
+          (ctbl:get-table-text
+           :model model)))
+    (message component)
+    (insert-list-right (split-string component "\n"))
+    )
+  (setq buffer-read-only t)
+  )
 
 (defun get-ns()
   "kubectl get ns"
@@ -84,11 +134,41 @@
   (list-all k8s-namespaces-buffer-name '("kubectl" "get" "ns"))
   )
 
+(defun get-resource(namespace resource &optional name needYaml)
+  "kubectl get resource"
+  (interactive "sNamespace: \nsResource: \nsName: \nsNeedYaml: ")
+  (let ((the-buffer-name (mapconcat #'identity (remove nil (list namespace resource name)) ":"))
+        (kubectl-command (remove nil (list "kubectl" "get" resource name "-n" namespace))))
+    (if needYaml
+      (get-yaml the-buffer-name (remove nil (list "kubectl" "get" resource name "-n" namespace "-o" "yaml")))
+      (list-all the-buffer-name kubectl-command)
+      )
+    ))
+
 (defun get-pods(namespace)
   "kubectl get pods"
   (interactive "sNamespace: ")
-  (list-all (concat namespace ":" k8s-pods-buffer-name) (list "kubectl" "get" "pods" "-n" namespace))
+  (get-resource namespace "pods")
   )
+
+(defun get-service(namespace)
+  "kubectl get service"
+  (interactive "sNamespace: ")
+  (get-resource namespace "service")
+  )
+
+(defun get-deployment(namespace)
+  "kubectl get deployment"
+  (interactive "sNamespace: ")
+  (get-resource namespace "deployment")
+  )
+
+(defun get-configMaps(namespace)
+  "kubectl get configMaps"
+  (interactive "sNamespace: ")
+  (get-resource namespace "configMaps")
+  )
+
 
 (defun get-pods-current-point-ns()
   "kubectl get pods, namespacs is current point symbol"
@@ -114,13 +194,9 @@
                 ))
 
 (defun get-pod-config (ns pod)
-  (let ((yaml-buffer-name (concat ns ":" pod)))
-    (when (get-buffer yaml-buffer-name)
-      (kill-buffer yaml-buffer-name))
-    (get-yaml yaml-buffer-name (list "kubectl" "get" "pods" pod "-o" "yaml" "-n" ns))))
-
+  (get-resource ns "pods" pod t)
+  )
 )
-
 
 (provide 'kubectl)
 ;;; leetcode.el ends here
