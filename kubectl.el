@@ -23,6 +23,7 @@
       (buffer-substring-no-properties (point-min) (point-max)))))
 
 (defun output-to-local-buffer-variable (proc string)
+  "Get Asyn process's output to asyn-process-output variable"
   (when (buffer-live-p (process-buffer proc))
     (setq asyn-process-output (concat asyn-process-output string))))
 
@@ -50,24 +51,23 @@
                 :sentinel 'kubectl-list-all-async))
 
 (defun create-cmodel (title)
+  "Create cmodel by title string"
   (make-ctbl:cmodel :title  title
-                    :align 'left)
-  )
+                    :align 'left))
 
 (defun add-click-hook (componet buffer)
+  "Add click-hook for ctable"
   (setq cp component
-        table-buffer buffer
-        )
+        table-buffer buffer)
   (if (string= k8s-namespaces-buffer-name (buffer-name buffer))
       (ctbl:cp-add-click-hook cp (lambda () (get-pods (car (ctbl:cp-get-selected-data-row cp)))))
       (ctbl:cp-add-click-hook cp (lambda () (get-pod-config 
                                          (car (split-string (buffer-name table-buffer) ":"))
-                                         (car (ctbl:cp-get-selected-data-row cp)))))
-    ))
+                                         (car (ctbl:cp-get-selected-data-row cp)))))))
 
 (defun show-ctable (titles data buffer)
-  (let* (
-        (model ; data model
+  "Create and show data in ctable"
+  (let* ((model ; data model
           (make-ctbl:model
            :column-model  (mapcar 'kubectl-create-cmodel titles)
            :data data))
@@ -78,26 +78,23 @@
     (add-click-hook component buffer)
     (pop-to-buffer (ctbl:cp-get-buffer component))
     (setq asyn-process-output nil)
-    (add-help-info (keymaps-to-data (ctbl:table-mode-map)))
-    ))
+    (add-help-info (keymaps-to-data (ctbl:table-mode-map)))))
 
 (defun butify-key (key)
+  "Butify key value from byte to string"
   (if (fixnump key)
     (byte-to-string key)
-    key
-      )
-  )
+    key))
 
 (defun keymap-to-item (key-map)
-  (list (butify-key (car key-map)) (cdr key-map))
-  )
+  (list (butify-key (car key-map)) (cdr key-map)))
 
 (defun  keymaps-to-data (key-maps)
-  (mapcar #'keymap-to-item (cdr key-maps))
-  )
+  (mapcar #'keymap-to-item (cdr key-maps)))
 
 
 (defun insert-list-right (str-list)
+  "Insert Help Info on ctable right"
   (save-excursion
     (goto-line 0)
     (end-of-line)
@@ -113,6 +110,7 @@
         ))))
 
 (defun add-help-info (data)
+  "Insert Help Info"
   (setq buffer-read-only nil)
   (let* (
          (model ; data model
@@ -131,8 +129,7 @@
 (defun get-ns()
   "kubectl get ns"
   (interactive)
-  (list-all k8s-namespaces-buffer-name '("kubectl" "get" "ns"))
-  )
+  (list-all k8s-namespaces-buffer-name '("kubectl" "get" "ns")))
 
 (defun get-resource(namespace resource &optional name needYaml)
   "kubectl get resource"
@@ -141,33 +138,27 @@
         (kubectl-command (remove nil (list "kubectl" "get" resource name "-n" namespace))))
     (if needYaml
       (get-yaml the-buffer-name (remove nil (list "kubectl" "get" resource name "-n" namespace "-o" "yaml")))
-      (list-all the-buffer-name kubectl-command)
-      )
-    ))
+      (list-all the-buffer-name kubectl-command))))
 
 (defun get-pods(namespace)
   "kubectl get pods"
   (interactive "sNamespace: ")
-  (get-resource namespace "pods")
-  )
+  (get-resource namespace "pods"))
 
 (defun get-service(namespace)
   "kubectl get service"
   (interactive "sNamespace: ")
-  (get-resource namespace "service")
-  )
+  (get-resource namespace "service"))
 
 (defun get-deployment(namespace)
   "kubectl get deployment"
   (interactive "sNamespace: ")
-  (get-resource namespace "deployment")
-  )
+  (get-resource namespace "deployment"))
 
 (defun get-configMaps(namespace)
   "kubectl get configMaps"
   (interactive "sNamespace: ")
-  (get-resource namespace "configMaps")
-  )
+  (get-resource namespace "configMaps"))
 
 
 (defun get-pods-current-point-ns()
@@ -180,22 +171,26 @@
   (when (memq (process-status process) '(exit))
     (switch-to-buffer (process-buffer process))
     (insert asyn-process-output)
-    (setq asyn-process-output nil)
-    (yaml-mode)
-    )
-  )
+    (setq asyn-process-output nil) (yaml-mode)))
 
 (defun get-yaml (buffer-name shell-command)
   (make-process :name buffer-name
                 :buffer buffer-name
                 :command shell-command
                 :filter #'output-to-local-buffer-variable
-                :sentinel #'switch-to-yaml-buffer
-                ))
+                :sentinel #'switch-to-yaml-buffer))
 
 (defun get-pod-config (ns pod)
-  (get-resource ns "pods" pod t)
-  )
+  "Get current pod config using yaml buffer"
+  (interactive)
+  (get-resource ns "pods" pod t))
+
+(defun apply-current-yaml-buffer ()
+  "Using kubectl apply current yaml buffer"
+  (interactive)
+  (message (concat "cat <<EOF | kubectl apply -f - \n" (buffer-whole-string (current-buffer)) "\nEOF"))
+  (shell-command (concat "cat <<EOF | kubectl apply -f - \n" (buffer-whole-string (current-buffer)) "\nEOF")))
+
 )
 
 (provide 'kubectl)
