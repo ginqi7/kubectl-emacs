@@ -24,5 +24,46 @@ you can download it from [[https://github.com/kiwanami/emacs-ctable][github]] or
 ** Configuration
 
 ** Features
-#+HTML: <p align="center"><img width="600px" src="./resources/kubectl-emacs.gif"></p>
+1. kubectl get ns
+2. kubectl get pods -n ns
+3. kubectl get deployments -n ns
+4. kubectl get services -n ns
+5. kubectl get ingresses -n ns
+6. kubectl get ns ns-name -o yaml
+7. kubectl get pods -n ns pod-name -o yaml
+8. kubectl get deployments -n ns deployment-name -o yaml
+9. kubectl get services -n ns service-name -o yaml
+10. kubectl get ingresses -n ns ingress-name -o yaml 
+11. apply yaml
+
+*** Example
+**** k8s-get-ns
+
+When run `k8s-get-ns`, there will show two tables. Left one is k8s namespaces, right one is Keymap help information about namespace table.
+
+[[file:images/2022-06-19_12-48-13_screenshot.png]]
+
+You can click selected item, the buffer will show namespaces yaml config.
+
+[[file:images/2022-06-19_12-52-32_screenshot.png]]
+
+**** k8s-get-resources
+When you selected a item, you can get pods/deployments/service/configMaps/ingress by keymap in right table.
+
+For example, k8s-get-pods
+
+[[file:images/2022-06-19_12-55-58_screenshot.png]]
+
+**** k8s-get-yaml-config
+
+When you open any resource table buffer, like namespaeces / pods etc, you click any selected item, there will open other yaml buffer to show detail information.
+
+[[file:images/2022-06-19_12-58-54_screenshot.png]]
+
+**** apply yaml buffer
+When you open any resource yaml buffer, you can edit config information and  run `k8s-apply-current-yaml-buffer` to apply changes for k8s.
+
+
+
+
 

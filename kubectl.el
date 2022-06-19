@@ -6,12 +6,6 @@
 (setq k8s--asyn-process-output "")
 (make-local-variable 'k8s--asyn-process-output)
 
-(setq k8s--namespaces-buffer-name "*k8s-namepace*")
-(make-local-variable 'k8s--namespaces-buffer-name)
-
-(setq k8s--pods-buffer-name "*k8s-pods*")
-(make-local-variable 'k8s--pods-buffer-name)
-
 (defvar k8s-namespace-buffer-keymap 
   (define-keymap "g" 
     (define-keymap 
@@ -40,8 +34,8 @@
   )
 
 (defun k8s--create-buffer-keymap (buffer)
-  (if (string= k8s--namespaces-buffer-name (buffer-name buffer))
-      k8s-namespace-buffer-keymap))
+  k8s-namespace-buffer-keymap
+  )
 
 (defun k8s--list-all-async (process signal)
   "Run kubectl Async and list resource"
@@ -50,11 +44,11 @@
           (titles (car output))
           (data (cdr output))
           (the-buffer (process-buffer process)))
-      (k8s--show-ctable titles data the-buffer (k8s--create-buffer-keymap the-buffer))
-      (setq k8s--asyn-process-output nil))))
+      (k8s--show-ctable titles data the-buffer (process-command process) (k8s--create-buffer-keymap the-buffer)))))
 
 (defun k8s--list-all (buffer-name shell-command)
   "Run kubectl and list resource"
+  (setq k8s--asyn-process-output nil)
   (make-process :name buffer-name
                 :buffer buffer-name
                 :command shell-command
@@ -66,19 +60,21 @@
   (make-ctbl:cmodel :title  title
                     :align 'left))
 
-(defun k8s--add-click-hook (componet buffer)
+(defun k8s--add-click-hook (componet command)
   "Add click-hook for ctable"
-  (setq cp component
-        table-buffer buffer)
-  (if (string= k8s--namespaces-buffer-name (buffer-name buffer))
-      (ctbl:cp-add-click-hook cp (lambda () (k8s-get-pods (car (ctbl:cp-get-selected-data-row cp)))))
-      (ctbl:cp-add-click-hook cp (lambda () (k8s-get-pod-config 
-                                         (car (split-string (buffer-name table-buffer) ":"))
-                                         (car (ctbl:cp-get-selected-data-row cp)))))))
+  (lexical-let ((cp componet)
+                (cmd command))
+    (ctbl:cp-add-click-hook 
+     componet 
+     (lambda () (let ((selected-val (car (ctbl:cp-get-selected-data-row cp))))
+              (setq k8s--asyn-process-output nil)
+              (k8s--get-yaml selected-val (append cmd (list selected-val "-o" "yaml")))
+               )))))
 
 
-(defun k8s--show-ctable (titles data buffer keymap)
+(defun k8s--show-ctable (titles data buffer command keymap)
   "Create and show data in ctable"
+  (with-current-buffer buffer (erase-buffer))
   (let* ((model ; data model
           (make-ctbl:model
            :column-model  (mapcar 'k8s--create-cmodel titles)
@@ -89,10 +85,10 @@
           :buffer buffer
           :model model)))
 
-    (k8s--add-click-hook component buffer)
     (pop-to-buffer (ctbl:cp-get-buffer component))
-    (setq k8s--asyn-process-output nil)
-    (k8s--add-help-info (k8s--keymaps-to-data (ctbl:table-mode-map k8s-namespace-buffer-keymap)))))
+    (k8s--add-click-hook component command)
+    (message "%s" (ctbl:table-mode-map keymap))
+    (k8s--add-help-info (k8s--keymaps-to-data (ctbl:table-mode-map keymap)))))
 
 (defun k8s--butify-key (key)
   "Butify key value from byte to string"
@@ -133,7 +129,10 @@
         (insert "   ")
         (insert (car str-list))
         (setq str-list (cdr str-list))
-        (next-line)
+        (if (eq (point) (point-max))
+            (insert "\n")
+            (next-line)
+          )
         ))))
 
 (defun k8s--add-help-info (data)
@@ -154,9 +153,10 @@
   (when (memq (process-status process) '(exit))
     (switch-to-buffer (process-buffer process))
     (insert k8s--asyn-process-output)
-    (setq k8s--asyn-process-output nil) (yaml-mode)))
+    (yaml-mode)))
 
 (defun k8s--get-yaml (buffer-name shell-command)
+  (setq k8s--asyn-process-output nil)
   (make-process :name buffer-name
                 :buffer buffer-name
                 :command shell-command
@@ -171,7 +171,8 @@
 (defun k8s-get-ns()
   "kubectl get ns"
   (interactive)
-  (k8s--list-all k8s--namespaces-buffer-name '("kubectl" "get" "ns")))
+  (let ((command '("kubectl" "get" "ns")))
+    (k8s--list-all (mapconcat 'identity command ":") command)))
 
 (defun k8s-get-resource(namespace resource &optional name needYaml)
   "kubectl get resource"
@@ -237,8 +238,12 @@
 
 (defun k8s-get-ingresses-current-iterm ()
   (interactive)
-  (k8s--run-function-in-current-iterm #'k8s-get-ingresses)
-  )
+  (k8s--run-function-in-current-iterm #'k8s-get-ingresses))
+
+(defun k8s-get-configMaps-current-iterm ()
+  (interactive)
+  (k8s--run-function-in-current-iterm #'k8s-get-configMaps))
 
 (provide 'kubectl)
 ;;; kubectl.el ends here
+
