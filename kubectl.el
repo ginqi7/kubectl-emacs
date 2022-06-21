@@ -122,7 +122,9 @@
 
 (defun k8s--show-ctable (titles data buffer command keymap)
   "Create and show data in ctable"
-  (with-current-buffer buffer (erase-buffer))
+  (with-current-buffer buffer 
+    (setq buffer-read-only nil)
+    (erase-buffer))
   (let* ((model ; data model
           (make-ctbl:model
            :column-model  (mapcar 'k8s--create-cmodel titles)
@@ -135,7 +137,8 @@
     (setq k8s--asyn-process-output nil)
     (pop-to-buffer (ctbl:cp-get-buffer component))
     (k8s--add-click-hook component command)
-    (k8s--add-help-info (k8s--keymaps-to-data (ctbl:table-mode-map keymap)))))
+    (k8s--add-help-info (k8s--keymaps-to-data (ctbl:table-mode-map keymap))))
+  (setq buffer-read-only t))
 
 (defun k8s--butify-key (key)
   "Butify key value from byte to string"
