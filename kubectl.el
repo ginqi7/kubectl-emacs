@@ -7,14 +7,15 @@
 (make-local-variable 'k8s--asyn-process-output)
 
 (defvar k8s-namespace-buffer-keymap 
-  (define-keymap "g" 
-    (define-keymap 
-      "s" #'k8s-get-services-current-iterm
-      "p" #'k8s-get-pods-current-iterm
-      "d" #'k8s-get-deployments-current-iterm
-      "c" #'k8s-get-configMaps-current-iterm
-      "i" #'k8s-get-ingresses-current-iterm)
-    "i" #'k8s-list-pod-files-current-iterm))
+  (ctbl:define-keymap '(
+                        ("gs" . k8s-get-services-current-iterm)
+                        ("gp" . k8s-get-pods-current-iterm)
+                        ("gd" . k8s-get-deployments-current-iterm)
+                        ("gc" . k8s-get-configMaps-current-iterm)
+                        ("gi" . k8s-get-ingresses-current-iterm)
+                        ("i" . k8s-list-pod-files-current-iterm))
+                      ))
+
 
 (defun k8s--buffer-whole-string (buffer)
   "Get String without properties from other buffer"
