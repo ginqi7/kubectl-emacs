@@ -200,6 +200,7 @@
 (defun k8s--switch-to-yaml-buffer(process signal)
   (when (memq (process-status process) '(exit))
     (switch-to-buffer (process-buffer process))
+    (erase-buffer)
     (insert k8s--asyn-process-output)
     (yaml-mode)))
 
