@@ -64,6 +64,10 @@ When you open any resource table buffer, like namespaeces / pods etc, you click 
 When you open any resource yaml buffer, you can edit config information and  run `k8s-apply-current-yaml-buffer` to apply changes for k8s.
 
 
+**** k8s-get-interactive
 
+You can get details of k8s' resource through interactive selections.
+
+#+HTML: <p align="center"><img width="600px" src="./images/kubect-get-interactive.gif"></p>
 
 
