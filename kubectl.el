@@ -4,7 +4,7 @@
 (require 'ctable)
 
 (setq k8s--asyn-process-output "")
-(make-local-variable 'k8s--asyn-process-output)
+;;(make-local-variable 'k8s--asyn-process-output)
 
 (defvar k8s-namespace-buffer-keymap 
   (ctbl:define-keymap '(
@@ -13,8 +13,7 @@
                         ("gd" . k8s-get-deployments-current-iterm)
                         ("gc" . k8s-get-configMaps-current-iterm)
                         ("gi" . k8s-get-ingresses-current-iterm)
-                        ("i" . k8s-list-pod-files-current-iterm))
-                      ))
+                        ("i" . k8s-list-pod-files-current-iterm))))
 
 
 (defun k8s--buffer-whole-string (buffer)
@@ -45,14 +44,33 @@
           (the-buffer (process-buffer process)))
       (k8s--show-ctable titles data the-buffer (process-command process) (k8s--create-buffer-keymap the-buffer)))))
 
-(defun k8s--list-all (buffer-name shell-command)
+(defun k8s--list-all-in-minibuffer (process signal)
+  "Run kubectl Async and list resource in minibuffer"
+  (when (memq (process-status process) '(exit))
+    (let* ((output (remove nil (mapcar 'k8s--split-string-wtith-blank (split-string k8s--asyn-process-output "\n"))))
+          (data (cdr output))
+          (candidates (mapcar 'car data))
+          (selected-item (completing-read "Please Select: " candidates))
+          (resource-type (process-get process 'resource-type))
+          (ns (process-get process 'namespace)))
+      (if ns
+          (k8s-get-resource ns resource-type selected-item t)
+        (progn
+          (let ((new-process (k8s--list-all (format "*k8s-list-%s*" resource-type)
+                                            (list "kubectl" "get" resource-type "-n" selected-item)
+                                            #'k8s--list-all-in-minibuffer)))
+            (process-put new-process 'resource-type resource-type)
+            (process-put new-process 'namespace selected-item)))))))
+
+
+(defun k8s--list-all (buffer-name shell-command sentinel)
   "Run kubectl and list resource"
   (setq k8s--asyn-process-output nil)
   (make-process :name buffer-name
                 :buffer buffer-name
                 :command shell-command
                 :filter #'k8s--output-to-local-buffer-variable
-                :sentinel 'k8s--list-all-async))
+                :sentinel sentinel))
 
 (defun k8s--list-files-async (process signal)
   "Run kubectl Async and list resource"
@@ -226,7 +244,7 @@
   "kubectl get ns"
   (interactive)
   (let ((command '("kubectl" "get" "ns")))
-    (k8s--list-all (mapconcat 'identity command ":") command)))
+    (k8s--list-all (mapconcat 'identity command ":") command #'k8s--list-all-async)))
 
 (defun k8s-get-resource(namespace resource &optional name needYaml)
   "kubectl get resource"
@@ -235,7 +253,7 @@
         (kubectl-command (remove nil (list "kubectl" "get" resource name "-n" namespace))))
     (if needYaml
       (k8s--get-yaml the-buffer-name (remove nil (list "kubectl" "get" resource name "-n" namespace "-o" "yaml")))
-      (k8s--list-all the-buffer-name kubectl-command))))
+      (k8s--list-all the-buffer-name kubectl-command #'k8s--list-all-async))))
 
 (defun k8s-get-pods(namespace)
   "kubectl get pods"
@@ -309,6 +327,13 @@
          (pod (car (ctbl:cp-get-selected-data-row cp)))
          )
     (k8s-list-pod-files ns pod "/home/admin/")))
+
+(defun k8s-get-interactive ()
+  (interactive)
+  (let* ((resource-type (completing-read "Select Resource: " '("pods" "deployments" "configmaps" "service" "ingress")))
+         (ns-process (k8s--list-all "*k8s-list-ns*" '("kubectl" "get" "ns") #'k8s--list-all-in-minibuffer)))
+    (process-put ns-process 'resource-type resource-type)
+  ))
 
 (provide 'kubectl)
 ;;; kubectl.el ends here
